@@ -1,24 +1,39 @@
 name: scrape-lowes
+
 on:
   schedule:
     - cron: "0 */6 * * *"   # every 6 hours
   workflow_dispatch:
+
+# Request a token with repo write permissions for this job
+permissions:
+  contents: write
+
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false  # we'll set our own token on the remote
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - run: npm i playwright
       - run: npx playwright install --with-deps chromium
+
       - run: node scrape.js
+
       - name: Commit results
         run: |
           git config user.name "price-bot"
-          git config user.email "price-bot@example.com"
+          git config user.email "price-bot@users.noreply.github.com"
           mkdir -p docs
           git add docs/lowes_prices.json
           git commit -m "update prices" || echo "no changes"
+          # set remote with a token that has write access
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git pull --rebase
           git push
