@@ -5,7 +5,6 @@ on:
     - cron: "0 */6 * * *"   # every 6 hours
   workflow_dispatch:
 
-# Request a token with repo write permissions for this job
 permissions:
   contents: write
 
@@ -15,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false  # we'll set our own token on the remote
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -26,15 +25,9 @@ jobs:
 
       - run: node scrape.js
 
+      # This action stages, commits (if changed), and pushes with the right token
       - name: Commit results
-        run: |
-          git config user.name "price-bot"
-          git config user.email "price-bot@users.noreply.github.com"
-          mkdir -p docs
-          git add docs/lowes_prices.json
-          git commit -m "update prices" || echo "no changes"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git fetch origin main
-          git rebase origin/main || git merge origin/main
-          git push origin HEAD:main
-
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "update prices"
+          file_pattern: docs/lowes_prices.json
